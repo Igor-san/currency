@@ -1013,7 +1013,41 @@ bool WriteMiningToConfig(bool mining,int procLimit)
 
     return res;
 }
-
+std::string strReplace(const std::string& str, const std::string& oldStr, const std::string& newStr)
+{
+   return boost::replace_all_copy(str, oldStr, newStr);
+}
+std::vector<std::string> Split(std::string s, std::string delim)
+{
+    std::vector<std::string> vEntry;
+    boost::split(vEntry, s, boost::is_any_of(delim));
+    return vEntry;
+}
+///в отличие от простого getline корректно определяет \r и \n в случае ошибочных локалей
+std::istream& safeGetline(std::istream& is, std::string& t)
+{
+    t.clear();
+    std::istream::sentry se(is, true);
+    std::streambuf* sb = is.rdbuf();
+    for(;;) {
+        int c = sb->sbumpc();
+        switch (c) {
+        case '\n':
+            return is;
+        case '\r':
+            if(sb->sgetc() == '\n')
+                sb->sbumpc();
+            return is;
+        case std::streambuf::traits_type::eof():
+            // Also handle the case when the last line has no line ending
+            if(t.empty())
+                is.setstate(std::ios::eofbit);
+            return is;
+        default:
+            t += (char)c;
+        }
+    }
+}
 bool WriteKey(std::string sKey, std::string sValue)
 {
     // Allows cPay to store the key value in the config file.
@@ -1029,17 +1063,15 @@ bool WriteKey(std::string sKey, std::string sValue)
     }
     boost::to_lower(sKey);
     std::string sLine = "";
-    ifstream streamConfigFile;
+    std::ifstream streamConfigFile;
     streamConfigFile.open(pathConfigFile.string().c_str());
     std::string sConfig = "";
     bool fWritten = false;
     if(streamConfigFile)
     {
-       while(getline(streamConfigFile, sLine))
+       while(!safeGetline(streamConfigFile, sLine).eof())
        {
-           // std::vector<std::string> vEntry = Split(sLine,"=");
-            std::vector<std::string> vEntry;
-            boost::split(vEntry, sLine, boost::is_any_of("="));
+            std::vector<std::string> vEntry = Split(sLine,"=");
             if (vEntry.size() == 2)
             {
                 std::string sSourceKey = vEntry[0];
@@ -1052,17 +1084,22 @@ bool WriteKey(std::string sKey, std::string sValue)
                     fWritten=true;
                 }
             }
-            //sLine = strReplace(sLine,"\r","");
-            // sLine = strReplace(sLine,"\n","");
-            boost::replace_all(sLine, "\r", "");
-            boost::replace_all(sLine, "\n", "");
-            sLine += "\r\n";
+            #ifdef WIN32
+              sLine += "\r\n";
+            #else
+              sLine += "\n";
+            #endif
             sConfig += sLine;
        }
     }
     if (!fWritten)
     {
-        sLine = sKey + "=" + sValue + "\r\n";
+        sLine = sKey + "=" + sValue;
+        #ifdef WIN32
+          sLine += "\r\n";
+        #else
+          sLine += "\n";
+        #endif
         sConfig += sLine;
     }
 
