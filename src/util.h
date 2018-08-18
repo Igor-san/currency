@@ -136,6 +136,8 @@ static inline bool error(const char* format)
     return false;
 }
 
+std::vector<std::string> Split(std::string s, std::string delim);
+std::string strReplace(const std::string& str, const std::string& oldStr, const std::string& newStr);
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
 void ParseParameters(int argc, const char*const argv[]);
 void FileCommit(FILE *fileout);
